@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Finanztracker — Nico</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --bg2: #111111;
+    --bg3: #181818;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f0;
+    --text2: #888;
+    --text3: #555;
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.1);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --amber: #f59e0b;
+    --amber-bg: rgba(245,158,11,0.1);
+    --blue: #3b82f6;
+    --blue-bg: rgba(59,130,246,0.1);
+    --accent: #f0f0f0;
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { font-size: 16px; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; min-height: 100vh; padding-bottom: 90px; }
+
+  /* TOP BAR */
+  .topbar { position: sticky; top: 0; z-index: 100; background: rgba(10,10,10,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 0.5px solid var(--border); padding: 14px 16px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar-title { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+  .topbar-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .topbar-badge { font-size: 12px; font-weight: 600; color: var(--green); background: var(--green-bg); padding: 4px 10px; border-radius: 20px; }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: rgba(10,10,10,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 0.5px solid var(--border); display: flex; padding: 8px 0 max(8px, env(safe-area-inset-bottom)); }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px; cursor: pointer; border: none; background: none; color: var(--text3); font-size: 10px; transition: color 0.15s; }
+  .nav-item.active { color: var(--text); }
+  .nav-icon { font-size: 22px; line-height: 1; }
+  .nav-item.active .nav-icon { filter: brightness(1.2); }
+
+  /* SECTIONS */
+  .section { display: none; padding: 16px; max-width: 480px; margin: 0 auto; }
+  .section.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .kpi-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px; }
+  .kpi-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+  .kpi-value { font-size: 19px; font-weight: 600; letter-spacing: -0.5px; }
+  .c-green { color: var(--green); }
+  .c-red { color: var(--red); }
+  .c-amber { color: var(--amber); }
+  .c-blue { color: var(--blue); }
+  .c-text { color: var(--text); }
+
+  /* PROGRESS */
+  .pbar { height: 4px; background: var(--bg3); border-radius: 10px; overflow: hidden; margin: 8px 0 4px; }
+  .pfill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+  .pf-green { background: var(--green); }
+  .pf-amber { background: var(--amber); }
+  .pf-red { background: var(--red); }
+  .pf-blue { background: var(--blue); }
+
+  /* LIST ITEMS */
+  .list-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .list-item:last-child { border-bottom: none; }
+  .list-body { flex: 1; min-width: 0; }
+  .list-name { font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .list-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .list-amount { font-size: 14px; font-weight: 600; white-space: nowrap; }
+
+  /* BADGES */
+  .badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
+  .b-auto { background: var(--blue-bg); color: var(--blue); }
+  .b-done { background: var(--green-bg); color: var(--green); }
+  .b-open { background: var(--amber-bg); color: var(--amber); }
+  .b-priv { background: var(--blue-bg); color: var(--blue); }
+  .b-biz { background: rgba(34,197,94,0.12); color: var(--green); }
+  .b-warn { background: var(--amber-bg); color: var(--amber); }
+
+  /* CHECK BUTTON */
+  .check-btn { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border2); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; color: transparent; font-size: 12px; }
+  .check-btn.done { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+
+  /* DIVIDER */
+  .divider { height: 0.5px; background: var(--border); margin: 12px 0; }
+  .total-row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; margin-top: 2px; border-top: 0.5px solid var(--border); }
+
+  /* BAR CHART */
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .bar-label { font-size: 12px; color: var(--text2); width: 100px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 10px; }
+  .bar-val { font-size: 12px; color: var(--text2); width: 60px; text-align: right; flex-shrink: 0; }
+
+  /* ===== LIVE INPUT ===== */
+  .live-hero { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px 16px 16px; margin-bottom: 12px; }
+  .amount-wrap { display: flex; align-items: center; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+  .amt-prefix { font-size: 28px; font-weight: 300; color: var(--text2); padding: 0 12px; flex-shrink: 0; }
+  .amt-input { flex: 1; font-size: 36px; font-weight: 600; letter-spacing: -1px; border: none; background: transparent; color: var(--text); outline: none; padding: 14px 0; min-width: 0; }
+  .amt-input::placeholder { color: var(--text3); }
+  .amt-suffix { font-size: 22px; font-weight: 400; color: var(--text2); padding: 0 14px; flex-shrink: 0; }
+
+  .desc-wrap { position: relative; margin-bottom: 10px; }
+  .desc-input { width: 100%; font-size: 15px; padding: 12px 14px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg3); color: var(--text); outline: none; }
+  .desc-input::placeholder { color: var(--text3); }
+  .desc-input:focus { border-color: rgba(255,255,255,0.25); }
+
+  .toggle-row { display: flex; gap: 6px; margin-bottom: 10px; }
+  .toggle-btn { flex: 1; padding: 9px 8px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text2); transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .toggle-btn.t-priv { background: var(--blue-bg); color: var(--blue); border-color: rgba(59,130,246,0.3); }
+  .toggle-btn.t-biz { background: rgba(34,197,94,0.1); color: var(--green); border-color: rgba(34,197,94,0.3); }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { padding: 6px 12px; border-radius: 20px; border: 0.5px solid var(--border2); background: transparent; font-size: 12px; cursor: pointer; color: var(--text2); transition: all 0.15s; }
+  .chip.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .upload-zone { border: 1px dashed var(--border2); border-radius: var(--radius); padding: 13px; text-align: center; cursor: pointer; color: var(--text2); font-size: 13px; margin-bottom: 10px; position: relative; overflow: hidden; transition: border-color 0.15s; }
+  .upload-zone:hover { border-color: rgba(255,255,255,0.25); color: var(--text); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-preview { width: 100%; max-height: 130px; object-fit: cover; border-radius: var(--radius); margin-bottom: 10px; display: none; border: 0.5px solid var(--border); }
+
+  .book-btn { width: 100%; padding: 14px; border-radius: var(--radius); border: none; background: var(--text); color: var(--bg); font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s; letter-spacing: -0.2px; }
+  .book-btn:hover { opacity: 0.85; }
+  .book-btn:active { transform: scale(0.985); }
+
+  /* EXPENSE ROWS */
+  .exp-item { display: flex; align-items: flex-start; gap: 10px; padding: 11px 0; border-bottom: 0.5px solid var(--border); animation: slideIn 0.2s ease; }
+  .exp-item:last-child { border-bottom: none; }
+  @keyframes slideIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+  .exp-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--bg3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; overflow: hidden; border: 0.5px solid var(--border); }
+  .exp-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .exp-body { flex: 1; min-width: 0; }
+  .exp-title { font-size: 14px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 3px; }
+  .exp-meta { font-size: 11px; color: var(--text2); }
+  .exp-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+  .exp-amount { font-size: 15px; font-weight: 700; color: var(--red); }
+  .exp-del { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 16px; padding: 2px; line-height: 1; transition: color 0.15s; }
+  .exp-del:hover { color: var(--red); }
+  .receipt-icon { font-size: 13px; color: var(--green); }
+
+  .empty { text-align: center; padding: 28px 0; color: var(--text3); font-size: 14px; line-height: 1.8; }
+
+  .filter-row { display: flex; gap: 6px; }
+  .filter-chip { padding: 4px 11px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; font-size: 12px; cursor: pointer; color: var(--text2); transition: all 0.15s; }
+  .filter-chip.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* MONTH BTNS */
+  .month-row { display: flex; gap: 6px; margin-bottom: 12px; }
+  .m-btn { padding: 6px 14px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; font-size: 13px; cursor: pointer; color: var(--text2); transition: all 0.15s; }
+  .m-btn.active { background: var(--text); color: var(--bg); }
+
+  /* GOAL BOX */
+  .goal-box { background: var(--bg2); border: 0.5px solid var(--border); border-left: 3px solid var(--green); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 12px; }
+  .goal-label { font-size: 11px; font-weight: 600; color: var(--green); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .goal-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+  .tip { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 10px 13px; font-size: 12px; color: var(--text2); margin-top: 8px; line-height: 1.5; }
+
+  /* ABO ROWS */
+  .abo-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 0.5px solid var(--border); gap: 10px; }
+  .abo-row:last-child { border-bottom: none; }
+  .abo-name { font-size: 14px; font-weight: 500; color: var(--text); }
+  .abo-note { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .abo-amt { font-size: 15px; font-weight: 700; color: var(--red); }
+  .abo-yr { font-size: 11px; color: var(--text2); }
+
+  .warn-box { background: var(--amber-bg); border: 0.5px solid rgba(245,158,11,0.2); border-radius: var(--radius); padding: 10px 13px; font-size: 12px; color: var(--amber); margin-bottom: 10px; line-height: 1.5; }
+
+  /* DEBT */
+  .mini-input { font-size: 14px; padding: 8px 12px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg3); color: var(--text); outline: none; width: 130px; text-align: right; }
+  .mini-btn { padding: 8px 16px; font-size: 13px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; cursor: pointer; color: var(--text); font-weight: 500; transition: background 0.15s; }
+  .mini-btn:hover { background: var(--bg3); }
+
+  .section-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 0; }
+
+  /* TOAST */
+  .toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-10px); background: var(--text); color: var(--bg); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 20px; z-index: 999; opacity: 0; transition: all 0.25s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">Finanztracker</div>
+    <div class="topbar-sub" id="topbar-date"></div>
+  </div>
+  <div class="topbar-badge" id="topbar-badge">+0,00 €</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- SECTIONS -->
+<div id="s-live" class="section active"></div>
+<div id="s-overview" class="section"></div>
+<div id="s-monat" class="section"></div>
+<div id="s-abos" class="section"></div>
+<div id="s-debts" class="section"></div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" data-tab="live" onclick="switchTab('live',this)">
+    <span class="nav-icon">＋</span>
+    <span>Ausgabe</span>
+  </button>
+  <button class="nav-item" data-tab="overview" onclick="switchTab('overview',this)">
+    <span class="nav-icon">◻</span>
+    <span>Übersicht</span>
+  </button>
+  <button class="nav-item" data-tab="monat" onclick="switchTab('monat',this)">
+    <span class="nav-icon">📅</span>
+    <span>Monat</span>
+  </button>
+  <button class="nav-item" data-tab="abos" onclick="switchTab('abos',this)">
+    <span class="nav-icon">🔁</span>
+    <span>Abos</span>
+  </button>
+  <button class="nav-item" data-tab="debts" onclick="switchTab('debts',this)">
+    <span class="nav-icon">🚗</span>
+    <span>Kredit</span>
+  </button>
+</nav>
+
+<script>
+// ===== DATA =====
+const SALARY = 1232.63;
+const LOAN = { total: 10000, monthly: 195, months: 48 };
+
+const ABOS = [
+  { name: 'iCloud', amount: 9.99 },
+  { name: 'Claude.ai', amount: 21.33, warn: 'Freunde zahlen ~16 € — prüfen!' },
+  { name: 'RSR Group (Gym)', amount: 24.90 },
+  { name: 'Blackmagic Cloud', amount: 14.88 },
+  { name: 'Google Workspace', amount: 32.90 },
+  { name: 'Jotta Cloud', amount: 11.90 },
+];
+
+const FIX = {
+  'Auto + Wohnen': [
+    { name: 'KFZ Versicherung', amount: 55, auto: true },
+    { name: 'Santander A4 B8', amount: 195, auto: true },
+  ],
+  'Abos': ABOS,
+  'Verträge': [
+    { name: 'Handy Gerät (Rate)', amount: 45, auto: true },
+    { name: 'Handy Vertrag / Internet', amount: 29.99, auto: true },
+    { name: 'Fahrrad Leasing', amount: 100, auto: true, note: 'Pausiert Mai' },
+  ],
+  'Rücklagen': [
+    { name: 'Sparen (N26)', amount: 50, auto: false },
+  ]
+};
+
+const MONTHS_DATA = {
+  Mai: { extraIncome: [], extras: [] },
+  Juni: {
+    extraIncome: [{ name: 'NKZS (Freelance)', amount: 450 }],
+    extras: [
+      { cat: 'Auto + Wohnen', name: 'KFZ Steuer', amount: 108, auto: true },
+      { cat: 'Sonstige', name: 'Auto Sonderkosten', amount: 200 },
+      { cat: 'Sonstige', name: 'Tanken', amount: 120 },
+      { cat: 'Sonstige', name: 'Benni (Schuld)', amount: 450 },
+      { cat: 'Sonstige', name: 'Carvertical', amount: 30 },
+      { cat: 'Verträge', name: 'Fahrrad (Juni)', amount: 100, auto: true },
+    ]
+  }
+};
+
+const CAT_COLORS = {
+  'Auto + Wohnen': '#3b82f6',
+  'Abos': '#ef4444',
+  'Verträge': '#22c55e',
+  'Rücklagen': '#f59e0b',
+  'Sonstige': '#888',
+  'Variable': '#a855f7'
+};
+
+const CATS_PRIV = ['Tanken','Essen','Einkauf','Freizeit','Kleidung','Auto','Sonstiges'];
+const CATS_BIZ  = ['Equipment','Software','Fahrtkosten','Marketing','Büro','Sonstiges'];
+
+const CAT_EMOJI = { Tanken:'⛽',Essen:'🍔',Einkauf:'🛍️',Freizeit:'🎮',Kleidung:'👕',Auto:'🚗',Equipment:'📷',Software:'💻',Fahrtkosten:'🚘',Marketing:'📣',Büro:'🗂️',Sonstiges:'💳' };
+
+// ===== STATE (persisted in localStorage) =====
+function loadState() {
+  try {
+    const raw = localStorage.getItem('nkzs_finanz_v1');
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return {
+    month: 'Juni',
+    paid: {},
+    debtManualPaid: 0,
+    expenses: [],
+    filter: 'all',
+  };
+}
+function saveState() {
+  try { localStorage.setItem('nkzs_finanz_v1', JSON.stringify(STATE)); } catch(e) {}
+}
+
+const STATE = loadState();
+
+// ===== LIVE INPUT STATE (not persisted) =====
+let LIVE = { type: 'privat', cat: 'Sonstiges', receiptData: null };
+
+// ===== UTILS =====
+function fmt(n, sign=false) {
+  const s = (Math.round(n*100)/100).toLocaleString('de-DE', {minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
+  return (sign && n>0 ? '+' : '') + s;
+}
+function today() { return new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function nowTime() { return new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ===== TOPBAR =====
+function updateTopbar() {
+  document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'long'});
+  const inc = totalIncome(STATE.month);
+  const exp = totalExpenses(STATE.month) + liveVarTotal();
+  const s = inc - exp;
+  const el = document.getElementById('topbar-badge');
+  el.textContent = fmt(s, true);
+  el.style.background = s >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)';
+  el.style.color = s >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
+// ===== DATA HELPERS =====
+function getMonthItems(m) {
+  const items = [];
+  for (const [cat, list] of Object.entries(FIX)) {
+    for (const item of list) {
+      if (m === 'Mai' && item.name === 'Fahrrad Leasing') continue;
+      items.push({...item, cat});
+    }
+  }
+  for (const ex of (MONTHS_DATA[m].extras || [])) items.push({auto:false,...ex});
+  return items;
+}
+function totalIncome(m) { return SALARY + (MONTHS_DATA[m].extraIncome||[]).reduce((s,i)=>s+i.amount,0); }
+function totalExpenses(m) { return getMonthItems(m).reduce((s,i)=>s+i.amount,0); }
+function paidTotal(m) { return getMonthItems(m).filter(i=>i.auto||STATE.paid[`${m}|${i.cat}|${i.name}`]).reduce((s,i)=>s+i.amount,0); }
+function liveVarTotal() { return STATE.expenses.reduce((s,e)=>s+e.amount,0); }
+function catTotals(m) {
+  const cats = {};
+  for (const item of getMonthItems(m)) cats[item.cat] = (cats[item.cat]||0) + item.amount;
+  return cats;
+}
+
+// ===== TAB SWITCH =====
+function switchTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('s-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='live') renderLive();
+  if(id==='overview') renderOverview();
+  if(id==='monat') renderMonat();
+  if(id==='abos') renderAbos();
+  if(id==='debts') renderDebts();
+  window.scrollTo(0,0);
+}
+
+// ===== LIVE TAB =====
+function renderLive() {
+  const cats = LIVE.type === 'privat' ? CATS_PRIV : CATS_BIZ;
+  const chipHtml = cats.map(c => `<button class="chip ${LIVE.cat===c?'active':''}" onclick="selectCat('${c}')">${CAT_EMOJI[c]||'💳'} ${c}</button>`).join('');
+
+  const todayExps = STATE.expenses.filter(e=>e.date===today());
+  const todayTotal = todayExps.reduce((s,e)=>s+e.amount,0);
+  const filtered = STATE.filter==='all' ? STATE.expenses : STATE.expenses.filter(e=>e.type===STATE.filter);
+
+  const todayHtml = todayExps.length === 0
+    ? `<div class="empty">📭<br>Noch keine Ausgaben heute</div>`
+    : todayExps.map(expRow).join('');
+
+  const allHtml = filtered.length === 0
+    ? `<div class="empty">📭<br>Noch keine Ausgaben</div>`
+    : filtered.map(expRow).join('');
+
+  document.getElementById('s-live').innerHTML = `
+    <div class="live-hero">
+      <div class="amount-wrap">
+        <span class="amt-prefix">−</span>
+        <input class="amt-input" id="amt" type="number" inputmode="decimal" placeholder="0" step="0.01" min="0" />
+        <span class="amt-suffix">€</span>
+      </div>
+      <input class="desc-input" id="desc" type="text" placeholder="Wofür? z.B. Tanken, Grillen, Coffee…" />
+      <div class="toggle-row" style="margin-top:10px;">
+        <button class="toggle-btn ${LIVE.type==='privat'?'t-priv':''}" id="btn-priv" onclick="setType('privat')">👤 Privat</button>
+        <button class="toggle-btn ${LIVE.type==='gewerbe'?'t-biz':''}" id="btn-biz" onclick="setType('gewerbe')">💼 Gewerbe</button>
+      </div>
+      <div class="chips" id="chips">${chipHtml}</div>
+      <div class="upload-zone" id="upload-zone">
+        📷 Beleg / Foto hochladen
+        <input type="file" accept="image/*,application/pdf" onchange="previewReceipt(event)" />
+      </div>
+      <img id="up-preview" class="upload-preview" alt="" />
+      <button class="book-btn" onclick="addExpense()">＋ Ausgabe buchen</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        Heute
+        ${todayTotal > 0 ? `<span style="font-size:13px;font-weight:700;color:var(--red);">−${fmt(todayTotal)}</span>` : ''}
+      </div>
+      ${todayHtml}
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        Alle Ausgaben
+        <div class="filter-row">
+          <button class="filter-chip ${STATE.filter==='all'?'active':''}" onclick="setFilter('all',this)">Alle</button>
+          <button class="filter-chip ${STATE.filter==='privat'?'active':''}" onclick="setFilter('privat',this)">Privat</button>
+          <button class="filter-chip ${STATE.filter==='gewerbe'?'active':''}" onclick="setFilter('gewerbe',this)">Gewerbe</button>
+        </div>
+      </div>
+      ${allHtml}
+    </div>
+  `;
+}
+
+function expRow(e) {
+  const hasImg = e.receipt && e.receipt.startsWith('data:image');
+  const icon = hasImg
+    ? `<div class="exp-icon"><img src="${e.receipt}" alt="" /></div>`
+    : `<div class="exp-icon">${CAT_EMOJI[e.cat]||'💳'}</div>`;
+  const typeBadge = e.type==='privat'
+    ? `<span class="badge b-priv">Privat</span>`
+    : `<span class="badge b-biz">Gewerbe</span>`;
+  const recBadge = e.receipt ? `<span class="receipt-icon" title="Beleg vorhanden">📎</span>` : '';
+  return `<div class="exp-item" id="exp-${e.id}">
+    ${icon}
+    <div class="exp-body">
+      <div class="exp-title">${e.desc} ${typeBadge} ${recBadge}</div>
+      <div class="exp-meta">${e.cat} · ${e.date} ${e.time}</div>
+    </div>
+    <div class="exp-right">
+      <span class="exp-amount">−${fmt(e.amount)}</span>
+      <button class="exp-del" onclick="deleteExp(${e.id})" aria-label="löschen">✕</button>
+    </div>
+  </div>`;
+}
+
+function setType(t) {
+  LIVE.type = t;
+  LIVE.cat = 'Sonstiges';
+  renderLive();
+}
+function selectCat(c) { LIVE.cat = c; renderLive(); }
+function setFilter(f, btn) {
+  STATE.filter = f;
+  saveState();
+  document.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLive();
+}
+
+function previewReceipt(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    LIVE.receiptData = ev.target.result;
+    const img = document.getElementById('up-preview');
+    if (file.type.startsWith('image/')) { img.src = ev.target.result; img.style.display = 'block'; }
+    document.getElementById('upload-zone').querySelector('span,div') && (document.getElementById('upload-zone').childNodes[0].textContent = '✅ Beleg geladen');
+  };
+  reader.readAsDataURL(file);
+}
+
+function addExpense() {
+  const amt = parseFloat(document.getElementById('amt').value);
+  const desc = document.getElementById('desc').value.trim();
+  if (!amt || amt <= 0) { toast('Betrag eingeben!'); document.getElementById('amt').focus(); return; }
+  if (!desc) { toast('Beschreibung eingeben!'); document.getElementById('desc').focus(); return; }
+  STATE.expenses.unshift({ id: Date.now(), amount: amt, desc, type: LIVE.type, cat: LIVE.cat, date: today(), time: nowTime(), receipt: LIVE.receiptData });
+  LIVE.receiptData = null;
+  saveState();
+  toast(`−${fmt(amt)} gebucht ✓`);
+  renderLive();
+  updateTopbar();
+}
+
+function deleteExp(id) {
+  STATE.expenses = STATE.expenses.filter(e=>e.id!==id);
+  saveState();
+  renderLive();
+  updateTopbar();
+}
+
+// ===== OVERVIEW =====
+function renderOverview() {
+  const m = STATE.month;
+  const inc = totalIncome(m), fixExp = totalExpenses(m), varExp = liveVarTotal();
+  const totalExp = fixExp + varExp, surplus = inc - totalExp;
+  const paid = paidTotal(m), open = fixExp - paid;
+  const pct = fixExp > 0 ? paid/fixExp : 0;
+  const pc = pct>=1?'pf-green':pct>=0.5?'pf-amber':'pf-red';
+
+  const cats = catTotals(m);
+  if (varExp > 0) cats['Variable'] = (cats['Variable']||0) + varExp;
+  const maxC = Math.max(...Object.values(cats),1);
+  const bars = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([cat,val])=>`
+    <div class="bar-row">
+      <div class="bar-label">${cat}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(val/maxC*100).toFixed(1)}%;background:${CAT_COLORS[cat]||'#888'};"></div></div>
+      <div class="bar-val">${fmt(val)}</div>
+    </div>`).join('');
+
+  const privV = STATE.expenses.filter(e=>e.type==='privat').reduce((s,e)=>s+e.amount,0);
+  const bizV  = STATE.expenses.filter(e=>e.type==='gewerbe').reduce((s,e)=>s+e.amount,0);
+
+  document.getElementById('s-overview').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Festgehalt</div><div class="kpi-value c-green">${fmt(SALARY)}</div></div>
+      <div class="kpi"><div class="kpi-label">Einnahmen ${m}</div><div class="kpi-value c-green">${fmt(inc)}</div></div>
+      <div class="kpi"><div class="kpi-label">Fixkosten</div><div class="kpi-value c-red">−${fmt(fixExp)}</div></div>
+      <div class="kpi"><div class="kpi-label">Variable (live)</div><div class="kpi-value c-red">−${fmt(varExp)}</div></div>
+      <div class="kpi"><div class="kpi-label">Gesamt Ausgaben</div><div class="kpi-value c-red">−${fmt(totalExp)}</div></div>
+      <div class="kpi"><div class="kpi-label">Überschuss</div><div class="kpi-value ${surplus>=0?'c-green':'c-red'}">${fmt(surplus,true)}</div></div>
+    </div>
+    ${bizV>0?`<div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Privat variabel</div><div class="kpi-value c-text">${fmt(privV)}</div></div>
+      <div class="kpi"><div class="kpi-label">Gewerbe variabel</div><div class="kpi-value c-blue">${fmt(bizV)}</div></div>
+    </div>`:''}
+    <div class="card">
+      <div class="card-title">Ausgaben nach Kategorie</div>
+      ${bars||'<div class="empty" style="padding:12px 0;font-size:13px;">Keine Daten</div>'}
+    </div>
+    <div class="card">
+      <div class="card-title">Fixkosten Status ${m}</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+        <span style="color:var(--text2);">Bezahlt ${(pct*100).toFixed(0)}%</span>
+        <span style="font-weight:600;">${fmt(paid)} / ${fmt(fixExp)}</span>
+      </div>
+      <div class="pbar"><div class="pfill ${pc}" style="width:${(pct*100).toFixed(0)}%;"></div></div>
+      <div style="margin-top:8px;font-size:13px;color:var(--text2);">Noch offen: <span style="color:var(--amber);font-weight:600;">${fmt(open)}</span></div>
+    </div>
+  `;
+}
+
+// ===== MONAT =====
+function renderMonat() {
+  const m = STATE.month;
+  const items = getMonthItems(m);
+  const bycat = {};
+  for (const item of items) { if(!bycat[item.cat]) bycat[item.cat]=[]; bycat[item.cat].push(item); }
+
+  let html = `<div class="month-row">
+    <button class="m-btn ${m==='Mai'?'active':''}" onclick="setMonth('Mai',this)">Mai 2026</button>
+    <button class="m-btn ${m==='Juni'?'active':''}" onclick="setMonth('Juni',this)">Juni 2026</button>
+  </div>`;
+
+  // Income
+  html += `<div class="card"><div class="card-title">Einnahmen</div>
+    <div class="list-item"><div class="list-body"><div class="list-name">Festgehalt (Netto)</div></div><div class="list-amount c-green">${fmt(SALARY)}</div></div>`;
+  for (const ex of (MONTHS_DATA[m].extraIncome||[])) {
+    html += `<div class="list-item"><div class="list-body"><div class="list-name">${ex.name} <span class="badge b-auto">Zusatz</span></div></div><div class="list-amount c-green">${fmt(ex.amount)}</div></div>`;
+  }
+  html += `<div class="total-row"><span style="color:var(--text2);font-size:13px;">Gesamt</span><span style="font-size:17px;font-weight:700;color:var(--green);">${fmt(totalIncome(m))}</span></div></div>`;
+
+  for (const cat of ['Auto + Wohnen','Abos','Verträge','Rücklagen','Sonstige']) {
+    if (!bycat[cat]) continue;
+    const catItems = bycat[cat];
+    const catTotal = catItems.reduce((s,i)=>s+i.amount,0);
+    const catPaid = catItems.filter(i=>i.auto||STATE.paid[`${m}|${cat}|${i.name}`]).reduce((s,i)=>s+i.amount,0);
+    const allDone = catPaid>=catTotal && catTotal>0;
+    const pct = catTotal>0?catPaid/catTotal:0;
+    const color = CAT_COLORS[cat]||'#888';
+
+    html += `<div class="card">
+      <div class="card-title">
+        <span style="display:flex;align-items:center;gap:7px;"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>${cat}</span>
+        <span style="font-size:12px;color:${allDone?'var(--green)':'var(--amber)'};">${fmt(catPaid)} / ${fmt(catTotal)}</span>
+      </div>`;
+    for (const item of catItems) {
+      const done = item.auto || !!STATE.paid[`${m}|${cat}|${item.name}`];
+      html += `<div class="list-item">
+        <button class="check-btn ${done?'done':''}" onclick="togglePaid('${m}','${cat}','${item.name}')">${done?'✓':''}</button>
+        <div class="list-body">
+          <div class="list-name">${item.name} ${item.auto?'<span class="badge b-auto">Auto</span>':(done?'<span class="badge b-done">✓</span>':'<span class="badge b-open">offen</span>')}</div>
+          ${item.note?`<div class="list-sub">${item.note}</div>`:''}
+        </div>
+        <div class="list-amount c-red">−${fmt(item.amount)}</div>
+      </div>`;
+    }
+    html += `<div class="pbar"><div class="pfill ${allDone?'pf-green':'pf-amber'}" style="width:${(pct*100).toFixed(0)}%;"></div></div></div>`;
+  }
+
+  const exp = totalExpenses(m), surplus = totalIncome(m) - exp;
+  html += `<div class="card" style="border-color:${surplus>=0?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'};">
+    <div class="card-title">Bilanz ${m}</div>
+    <div class="list-item"><div class="list-body"><div class="list-name" style="color:var(--text2);">Einnahmen</div></div><div class="list-amount c-green">${fmt(totalIncome(m))}</div></div>
+    <div class="list-item"><div class="list-body"><div class="list-name" style="color:var(--text2);">Fixausgaben</div></div><div class="list-amount c-red">−${fmt(exp)}</div></div>
+    <div class="total-row"><span style="font-weight:600;">Überschuss</span><span style="font-size:22px;font-weight:700;color:${surplus>=0?'var(--green)':'var(--red)'};">${fmt(surplus,true)}</span></div>
+  </div>`;
+
+  document.getElementById('s-monat').innerHTML = html;
+}
+
+function togglePaid(m, cat, name) {
+  const k = `${m}|${cat}|${name}`;
+  STATE.paid[k] = !STATE.paid[k];
+  saveState();
+  renderMonat();
+  updateTopbar();
+}
+function setMonth(m, btn) {
+  STATE.month = m;
+  saveState();
+  document.querySelectorAll('.m-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMonat();
+  updateTopbar();
+}
+
+// ===== ABOS =====
+function renderAbos() {
+  const aboTotal = ABOS.reduce((s,a)=>s+a.amount,0);
+  const aboRows = ABOS.map(a=>`
+    <div class="abo-row">
+      <div>
+        <div class="abo-name">${a.name}${a.warn?` <span class="badge b-warn">!</span>`:''}</div>
+        ${a.warn?`<div class="abo-note" style="color:var(--amber);">${a.warn}</div>`:`<div class="abo-note">monatlich · automatisch</div>`}
+      </div>
+      <div style="text-align:right;">
+        <div class="abo-amt">−${fmt(a.amount)}</div>
+        <div class="abo-yr">${fmt(a.amount*12)}/Jahr</div>
+      </div>
+    </div>`).join('');
+
+  let fixTotal = 0, fixRows = '';
+  for (const [cat, items] of Object.entries(FIX)) {
+    const ct = items.reduce((s,i)=>s+i.amount,0); fixTotal += ct;
+    const color = CAT_COLORS[cat]||'#888';
+    fixRows += `<div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:7px;"><span style="width:7px;height:7px;border-radius:50%;background:${color};display:inline-block;"></span>${cat}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--red);">−${fmt(ct)}</span>
+      </div>`;
+    for (const item of items) {
+      fixRows += `<div style="display:flex;justify-content:space-between;padding:4px 0 4px 14px;">
+        <span style="font-size:13px;color:var(--text2);">${item.name}${item.note?` <span style="font-size:11px;opacity:.6;">(${item.note})</span>`:''}</span>
+        <span style="font-size:13px;color:var(--text);">${fmt(item.amount)}</span>
+      </div>`;
+    }
+    fixRows += `</div><div class="divider"></div>`;
+  }
+
+  document.getElementById('s-abos').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Abos / Monat</div><div class="kpi-value c-red">−${fmt(aboTotal)}</div></div>
+      <div class="kpi"><div class="kpi-label">Abos / Jahr</div><div class="kpi-value c-red">−${fmt(aboTotal*12)}</div></div>
+      <div class="kpi"><div class="kpi-label">Fix gesamt</div><div class="kpi-value c-red">−${fmt(fixTotal)}</div></div>
+      <div class="kpi"><div class="kpi-label">Rest Gehalt</div><div class="kpi-value ${SALARY-fixTotal>=0?'c-green':'c-red'}">${fmt(SALARY-fixTotal)}</div></div>
+    </div>
+    <div class="warn-box">⚠️ Claude.ai: du zahlst 21,33 € — Freunde mit gleicher Version zahlen ~16 €. Preis prüfen, evtl. günstiger über USD.</div>
+    <div class="card">
+      <div class="card-title">Alle Abos</div>
+      ${aboRows}
+      <div class="total-row"><span style="color:var(--text2);font-size:13px;">Gesamt / Monat</span><span style="font-size:17px;font-weight:700;color:var(--red);">−${fmt(aboTotal)}</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Alle Fixkosten</div>
+      ${fixRows}
+      <div class="total-row"><span style="font-weight:600;">Fixkosten gesamt</span><span style="font-size:17px;font-weight:700;color:var(--red);">−${fmt(fixTotal)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);">
+        <span style="font-size:13px;color:var(--text2);">Festgehalt nach Fixkosten</span>
+        <span style="font-size:15px;font-weight:700;color:var(--green);">${fmt(SALARY-fixTotal)}</span>
+      </div>
+    </div>`;
+}
+
+// ===== DEBTS =====
+function renderDebts() {
+  const totalMonthsPaid = 2 + Math.floor(STATE.debtManualPaid / LOAN.monthly);
+  const paid = Math.min(totalMonthsPaid * LOAN.monthly, LOAN.total * 0.8);
+  const remaining = LOAN.total - paid;
+  const pct = paid / LOAN.total;
+  const monthsLeft = LOAN.months - totalMonthsPaid;
+  const endDate = new Date(2026, 5 + monthsLeft);
+  const endStr = endDate.toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+
+  document.getElementById('s-debts').innerHTML = `
+    <div class="goal-box">
+      <div class="goal-label">🎯 Ziel: Vollkauf 2025 / 2026</div>
+      <div class="goal-text">Restschuld <strong style="color:var(--text);">${fmt(remaining)}</strong> — für Vollkauf diese Summe komplett ablösen.</div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Kredit gesamt</div><div class="kpi-value c-text">${fmt(LOAN.total)}</div></div>
+      <div class="kpi"><div class="kpi-label">Restschuld</div><div class="kpi-value c-red">${fmt(remaining)}</div></div>
+      <div class="kpi"><div class="kpi-label">Rate / Monat</div><div class="kpi-value c-amber">&lt;${fmt(LOAN.monthly)}</div></div>
+      <div class="kpi"><div class="kpi-label">Balloon-Ende</div><div class="kpi-value" style="font-size:13px;">${endStr}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Audi A4 B8 — Ballonfinanzierung</div>
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+          <span style="color:var(--text2);">Abgezahlt</span>
+          <span style="color:var(--green);font-weight:600;">${fmt(paid)} (${(pct*100).toFixed(0)}%)</span>
+        </div>
+        <div class="pbar" style="height:8px;"><div class="pfill pf-blue" style="width:${(pct*100).toFixed(1)}%;"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text3);">
+          <span>0 €</span><span>10.000 €</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Sonderzahlung simulieren</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <input class="mini-input" type="number" id="buyout" placeholder="z.B. 3000" oninput="calcBuyout()" style="flex:1;" />
+        <span style="font-size:13px;color:var(--text2);">€</span>
+      </div>
+      <div id="buyout-res"></div>
+
+      <div class="divider"></div>
+      <div class="section-label">Tilgung manuell buchen</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="mini-input" type="number" placeholder="Betrag" id="dp" style="flex:1;" />
+        <button class="mini-btn" onclick="payDebt()">Buchen</button>
+      </div>
+    </div>
+    <div class="tip">💡 Ballonfinanzierung: Am Laufzeitende fällt eine Restrate (Ballon) an. Ziel: bis dahin so viel wie möglich tilgen und dann vollständig ablösen.</div>`;
+}
+
+function calcBuyout() {
+  const v = parseFloat(document.getElementById('buyout').value)||0;
+  const totalMonthsPaid = 2 + Math.floor(STATE.debtManualPaid / LOAN.monthly);
+  const paid = Math.min(totalMonthsPaid * LOAN.monthly, LOAN.total * 0.8);
+  const remaining = LOAN.total - paid;
+  const after = Math.max(0, remaining - v);
+  const saved = Math.floor(v / LOAN.monthly);
+  const el = document.getElementById('buyout-res');
+  if (!v) { el.innerHTML=''; return; }
+  el.innerHTML = `<div style="background:var(--bg3);border-radius:var(--radius);padding:12px 14px;font-size:13px;line-height:1.6;">
+    Restschuld danach: <strong style="color:${after<=0?'var(--green)':'var(--red)'};">${fmt(after)}</strong><br>
+    ${after<=0?'<span style="color:var(--green);">🎉 Auto vollständig abbezahlt!</span>':`Spart dir ~${saved} Monatsraten.`}
+  </div>`;
+}
+
+function payDebt() {
+  const v = parseFloat(document.getElementById('dp').value)||0;
+  if (v>0) {
+    STATE.debtManualPaid += v;
+    saveState();
+    toast(`${fmt(v)} Tilgung gebucht ✓`);
+    renderDebts();
+  }
+}
+
+// ===== INIT =====
+updateTopbar();
+renderLive();
+setInterval(updateTopbar, 60000);
+</script>
+</body>
+</html>
